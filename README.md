@@ -1,5 +1,9 @@
 # schrodinger-mcp
 
+<p align="center">
+  <img src="docs/hero.png" alt="schrodinger-mcp — drive Schrödinger drug-discovery workflows from your AI agent" width="540">
+</p>
+
 An [MCP](https://modelcontextprotocol.io) server that exposes **Schrödinger Suites**
 computational-chemistry / drug-discovery workflows to **any MCP-capable coding agent** —
 Claude Code, Claude Desktop, Cursor, GitHub Copilot, OpenCode, Cline, Windsurf, Zed, and
