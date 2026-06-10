@@ -33,26 +33,28 @@ def _png_image(png: bytes, out_path: Path) -> Image:
 def render_2d_structure(
     smiles: Optional[list[str]] = None,
     input_path: Optional[str] = None,
+    labels: Optional[list[str]] = None,
     legend_property: Optional[str] = None,
     output_path: Optional[str] = None,
     max_structures: int = 30,
 ):
     """Render molecules as a 2D structure image (PNG) shown inline. Provide either a list
-    of `smiles` or an `input_path` to a structure file (mae/sdf/pdb/...). For files you can
-    pass `legend_property` (e.g. 'r_i_docking_score') to label each structure with that
-    value. Also writes the PNG to disk."""
+    of `smiles` or an `input_path` to a structure file (mae/sdf/pdb/...). For SMILES you can
+    pass `labels` (one caption per molecule, e.g. drug names); otherwise the SMILES string
+    is used. For files you can pass `legend_property` (e.g. 'r_i_docking_score') to label
+    each structure with that value. Also writes the PNG to disk."""
     from rdkit import Chem
     from rdkit.Chem import AllChem, Draw
     from rdkit.Chem.Draw import rdMolDraw2D
 
     mols, legends = [], []
     if smiles:
-        for s in smiles:
+        for i, s in enumerate(smiles):
             m = Chem.MolFromSmiles(s)
             if m is not None:
                 AllChem.Compute2DCoords(m)
                 mols.append(m)
-                legends.append(s)
+                legends.append(labels[i] if labels and i < len(labels) else s)
     elif input_path:
         inp = _common.validate_input_path(input_path)
         data = runner.run_worker(

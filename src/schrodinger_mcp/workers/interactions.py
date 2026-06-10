@@ -38,10 +38,22 @@ def _build_complex(payload):
         ligset = set(range(nrec + 1, combined.atom_total + 1))
         sch_to_local = {nrec + i: i for i in range(1, ligand.atom_total + 1)}
         return combined, ligset, ligand, sch_to_local
-    # Single complex: identify the ligand by ASL.
+    # Single complex: identify the ligand by ASL. Default = the largest non-protein,
+    # non-water/ion molecule (a small-molecule ligand). "ligand" is a valid ASL class;
+    # fall back to a plain protein/water exclusion if a build lacks it.
     st = sts[0]
-    asl = asl or "(not protein) and (not water) and (not ion) and (not metals)"
-    lig_atoms = analyze.evaluate_asl(st, asl)
+    if asl is None:
+        lig_atoms = []
+        for candidate in ("ligand", "not (protein or water or ions)", "(not protein) and (not water)"):
+            try:
+                lig_atoms = analyze.evaluate_asl(st, candidate)
+            except Exception:
+                continue
+            if lig_atoms:
+                asl = candidate
+                break
+    else:
+        lig_atoms = analyze.evaluate_asl(st, asl)
     if not lig_atoms:
         raise ValueError(f"no ligand atoms matched ASL: {asl}")
     ligset = set(lig_atoms)
