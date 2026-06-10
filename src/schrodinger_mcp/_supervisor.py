@@ -18,11 +18,14 @@ from __future__ import annotations
 
 import json
 import os
-import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+# Import the platform helpers without importing the whole package (the supervisor is
+# launched as ``python -m schrodinger_mcp._supervisor`` so the package is importable).
+from . import platformutil
 
 
 def _write_status(job_dir: Path, status: dict) -> None:
@@ -65,17 +68,21 @@ def run(job_dir: Path) -> int:
             env=env,
             stdout=log,
             stderr=subprocess.STDOUT,
-            start_new_session=True,  # own process group, so cancel kills subjobs too
+            # New session/process group so cancel can kill the whole subjob tree.
+            **platformutil.detached_popen_kwargs(),
         )
-        # Record the child's process-group id so the server can cancel the whole tree.
-        _write_status(
-            job_dir,
-            {**base, "state": "running", "child_pid": proc.pid, "pgid": os.getpgid(proc.pid)},
-        )
+        # Record the child pid (and, on POSIX, its process-group id) for cancellation.
+        running = {**base, "state": "running", "child_pid": proc.pid}
+        if not platformutil.IS_WINDOWS:
+            try:
+                running["pgid"] = os.getpgid(proc.pid)
+            except OSError:
+                pass
+        _write_status(job_dir, running)
         try:
             rc = proc.wait(timeout=cap)
         except subprocess.TimeoutExpired:
-            _kill_tree(proc.pid)
+            platformutil.kill_tree(proc.pid)
             rc = proc.wait()
             _finish(job_dir, base, "failed", rc, error="wall-clock cap exceeded")
             return rc
@@ -109,13 +116,6 @@ def _log_tail(job_dir: Path, limit: int = 2000) -> str:
     except OSError:
         return ""
     return text.strip()[-limit:]
-
-
-def _kill_tree(pid: int) -> None:
-    try:
-        os.killpg(os.getpgid(pid), signal.SIGTERM)
-    except ProcessLookupError:
-        pass
 
 
 def main() -> None:

@@ -9,14 +9,21 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-#: Default root for everything this server writes. Override with $SCHRODINGER_MCP_HOME.
-_DEFAULT_HOME = Path.home() / ".local" / "share" / "schrodinger-mcp"
+
+def _default_home() -> Path:
+    """Platform-appropriate default data directory."""
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA") or (Path.home() / "AppData" / "Local")
+        return Path(base) / "schrodinger-mcp"
+    return Path.home() / ".local" / "share" / "schrodinger-mcp"
 
 
 def home() -> Path:
-    """Root directory for all server-managed state (jobs, scratch, registry)."""
-    root = Path(os.environ.get("SCHRODINGER_MCP_HOME", _DEFAULT_HOME)).expanduser()
-    return root
+    """Root directory for all server-managed state (jobs, scratch, registry).
+
+    Override with the ``SCHRODINGER_MCP_HOME`` environment variable.
+    """
+    return Path(os.environ.get("SCHRODINGER_MCP_HOME", _default_home())).expanduser()
 
 
 def jobs_dir() -> Path:

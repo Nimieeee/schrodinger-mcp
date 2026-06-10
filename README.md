@@ -26,8 +26,8 @@ Outputs are written under `~/.local/share/schrodinger-mcp/` (override with
 
 ## Requirements
 
-- macOS/Linux with **Schrödinger Suites 2026** installed and licensed
-  (auto-detected at `/opt/schrodinger/suites*`, or set `SCHRODINGER`).
+- macOS, Linux, or Windows with **Schrödinger Suites 2026** installed and licensed
+  (auto-detected at `/opt/schrodinger/suites*` or `C:\Program Files\Schrodinger*`, or set `SCHRODINGER`).
 - [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`.
 
 > This project contains **no Schrödinger software or data**. You must supply your
@@ -39,12 +39,26 @@ Outputs are written under `~/.local/share/schrodinger-mcp/` (override with
 
 ## Install
 
+**macOS / Linux**
+
 ```bash
-cd "/Users/mac/schrodinger mcp"
+cd schrodinger-mcp
 uv venv --python 3.12 .venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
+
+**Windows** (PowerShell)
+
+```powershell
+cd schrodinger-mcp
+uv venv --python 3.12 .venv
+.venv\Scripts\activate
+uv pip install -e ".[dev]"
+```
+
+The install root is auto-detected per platform (`/opt/schrodinger/suites*` on
+macOS/Linux, `C:\Program Files\Schrodinger*` on Windows). Set `SCHRODINGER` to override.
 
 Sanity check:
 
@@ -76,6 +90,17 @@ claude mcp add schrodinger \
   }
 }
 ```
+
+**Windows** — register the `.exe` console script (note the Windows install path):
+
+```powershell
+claude mcp add schrodinger `
+  --env SCHRODINGER="C:\Program Files\Schrodinger2026-1" `
+  -- "C:\path\to\schrodinger-mcp\.venv\Scripts\schrodinger-mcp.exe"
+```
+
+For Claude Desktop on Windows, edit `%APPDATA%\Claude\claude_desktop_config.json` and set
+`"command"` to that `.exe` path (use doubled backslashes in JSON).
 
 Restart the client; the `schrodinger` tools and the `schrodinger://installation` resource
 appear.

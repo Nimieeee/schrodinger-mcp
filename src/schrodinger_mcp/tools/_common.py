@@ -87,10 +87,10 @@ def ext_for(fmt: str) -> str:
 
 
 def utility(name: str) -> str:
-    """Absolute path to a $SCHRODINGER/utilities/<name> tool."""
-    return str(installation.find_root() / "utilities" / name)
+    """Absolute path to a $SCHRODINGER/utilities/<name> tool (resolves .exe/.bat on Windows)."""
+    return str(installation.tool_path(name, utility=True))
 
 
 def launcher(name: str) -> str:
-    """Absolute path to a top-level $SCHRODINGER/<name> launcher."""
-    return str(installation.find_root() / name)
+    """Absolute path to a top-level $SCHRODINGER/<name> launcher (resolves .exe/.bat on Windows)."""
+    return str(installation.tool_path(name))

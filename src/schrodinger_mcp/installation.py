@@ -1,12 +1,14 @@
-"""Locate and describe the Schrödinger installation.
+"""Locate and describe the Schrödinger installation (macOS, Linux, Windows).
 
 Resolution order:
 1. ``$SCHRODINGER`` environment variable (if valid).
-2. Autodetect ``/opt/schrodinger/suites*`` (highest version wins).
-3. macOS ``/Applications/SchrodingerSuites*``.
+2. Autodetect the platform's default install location, highest version wins:
+   - Linux:   ``/opt/schrodinger/suites*``
+   - macOS:   ``/opt/schrodinger/suites*``, ``/Applications/SchrodingerSuites*``
+   - Windows: ``%SCHRODINGER%``, ``C:\\Program Files\\Schrodinger*``, ``Schrodinger\\*``
 
-A candidate is valid iff ``<root>/run`` is executable and ``<root>/version.txt`` exists.
-The resolved root is cached for the life of the process.
+A candidate is valid iff a ``run`` launcher (``run``/``run.exe``/``run.bat``) and
+``version.txt`` exist. The resolved root is cached for the life of the process.
 """
 
 from __future__ import annotations
@@ -19,15 +21,15 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from . import platformutil
 from .errors import InstallationNotFound
 
-_SUITE_RE = re.compile(r"suites(\d{4})-(\d+)")
+# Match version tokens in folder names: "suites2026-1", "Schrodinger2026-1", etc.
+_SUITE_RE = re.compile(r"(\d{4})-(\d+)")
 
 
 def _is_valid_root(root: Path) -> bool:
-    return (root / "run").is_file() and os.access(root / "run", os.X_OK) and (
-        root / "version.txt"
-    ).exists()
+    return platformutil.is_executable(root / "run") and (root / "version.txt").exists()
 
 
 def _suite_sort_key(path: Path):
@@ -37,18 +39,30 @@ def _suite_sort_key(path: Path):
     return (int(m.group(1)), int(m.group(2)))
 
 
+def _glob_sorted(base: Path, pattern: str) -> list[Path]:
+    if not base.is_dir():
+        return []
+    return sorted(base.glob(pattern), key=_suite_sort_key, reverse=True)
+
+
 def _candidate_roots() -> list[Path]:
     candidates: list[Path] = []
     env = os.environ.get("SCHRODINGER")
     if env:
         candidates.append(Path(env))
-    for base in ("/opt/schrodinger", str(Path.home() / "schrodinger")):
-        p = Path(base)
-        if p.is_dir():
-            candidates.extend(sorted(p.glob("suites*"), key=_suite_sort_key, reverse=True))
-    apps = Path("/Applications")
-    if apps.is_dir():
-        candidates.extend(sorted(apps.glob("SchrodingerSuites*"), key=_suite_sort_key, reverse=True))
+
+    if platformutil.IS_WINDOWS:
+        for base_env in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)"):
+            base = os.environ.get(base_env)
+            if base:
+                candidates += _glob_sorted(Path(base), "Schrodinger*")
+                candidates += _glob_sorted(Path(base) / "Schrodinger", "*")
+        for drive in ("C:\\", "D:\\"):
+            candidates += _glob_sorted(Path(drive), "Schrodinger*")
+    else:
+        for base in ("/opt/schrodinger", str(Path.home() / "schrodinger")):
+            candidates += _glob_sorted(Path(base), "suites*")
+        candidates += _glob_sorted(Path("/Applications"), "SchrodingerSuites*")
     return candidates
 
 
@@ -60,16 +74,29 @@ def find_root() -> Path:
         tried.append(str(cand))
         if _is_valid_root(cand):
             return cand
+    example = (
+        r"C:\Program Files\Schrodinger2026-1"
+        if platformutil.IS_WINDOWS
+        else "/opt/schrodinger/suites2026-1"
+    )
     raise InstallationNotFound(
         "Could not locate a valid Schrödinger installation. Set the SCHRODINGER "
-        "environment variable to the install root (e.g. /opt/schrodinger/suites2026-1).",
+        f"environment variable to the install root (e.g. {example}).",
         tried=",".join(tried) or "none",
     )
 
 
 def run_path() -> Path:
-    """Absolute path to ``$SCHRODINGER/run``."""
-    return find_root() / "run"
+    """Absolute path to the ``run`` launcher (``run``/``run.exe``/``run.bat``)."""
+    resolved = platformutil.resolve_executable(find_root() / "run")
+    return resolved or (find_root() / "run")
+
+
+def tool_path(name: str, *, utility: bool = False) -> Path:
+    """Resolve a launcher/utility by base name to its platform-specific executable."""
+    root = find_root()
+    base = (root / "utilities" / name) if utility else (root / name)
+    return platformutil.resolve_executable(base) or base
 
 
 def child_env(extra: Optional[dict] = None) -> dict:
@@ -122,12 +149,15 @@ def installed_workflows() -> dict:
     This is more reliable than parsing the encrypted license file: it reports what is
     actually installed. License availability is enforced by Schrödinger at job submission.
     """
-    root = find_root()
     out = {}
     for name, (kind, tool) in _WORKFLOW_ENTRYPOINTS.items():
-        path = (root / tool) if kind == "top" else (root / "utilities" / tool)
-        out[name] = path.exists()
+        out[name] = platformutil.resolve_executable(_entrypoint_base(kind, tool)) is not None
     return out
+
+
+def _entrypoint_base(kind: str, tool: str) -> Path:
+    root = find_root()
+    return (root / tool) if kind == "top" else (root / "utilities" / tool)
 
 
 def hosts(timeout: int = 10) -> list[dict]:
@@ -156,20 +186,28 @@ def hosts(timeout: int = 10) -> list[dict]:
 def gpu_available() -> dict:
     """Report GPU situation. NVIDIA/CUDA is required for Desmond GPU-MD and FEP+."""
     info = {"nvidia": False, "platform": platform.platform(), "machine": platform.machine()}
-    if platform.system() == "Darwin":
-        try:
+    system = platform.system()
+    try:
+        if system == "Darwin":
             out = subprocess.run(
                 ["system_profiler", "SPDisplaysDataType"],
-                capture_output=True,
-                text=True,
-                timeout=20,
+                capture_output=True, text=True, timeout=20,
             ).stdout
             info["nvidia"] = "nvidia" in out.lower()
             m = re.search(r"Chipset Model:\s*(.+)", out)
             if m:
                 info["chipset"] = m.group(1).strip()
-        except Exception:
-            pass
+        else:
+            # Linux/Windows: nvidia-smi is the portable signal for a usable NVIDIA GPU.
+            smi = subprocess.run(
+                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                capture_output=True, text=True, timeout=20,
+            )
+            if smi.returncode == 0 and smi.stdout.strip():
+                info["nvidia"] = True
+                info["chipset"] = smi.stdout.strip().splitlines()[0]
+    except Exception:
+        pass
     return info
 
 
@@ -186,6 +224,7 @@ def describe() -> dict:
         "notes": (
             "Workflow availability is based on installed launchers; license tokens are "
             "verified by Schrödinger at job submission. GPU-accelerated workflows "
-            "(Desmond MD, FEP+) require an NVIDIA/CUDA GPU and are unavailable on Apple Silicon."
+            "(Desmond MD, FEP+) require an NVIDIA/CUDA GPU and are not exposed when none "
+            "is detected (e.g. Apple Silicon)."
         ),
     }

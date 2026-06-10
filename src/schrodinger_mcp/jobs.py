@@ -14,8 +14,6 @@ plus ``status.json`` are the source of truth.
 from __future__ import annotations
 
 import json
-import os
-import signal
 import subprocess
 import sys
 import time
@@ -25,7 +23,7 @@ from typing import Optional
 
 from filelock import FileLock
 
-from . import config, installation
+from . import config, installation, platformutil
 from .errors import InvalidInput, JobNotFound
 
 _VALID_ID = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
@@ -60,15 +58,7 @@ def _validate_id(job_id: str) -> str:
 
 
 def _pid_alive(pid: Optional[int]) -> bool:
-    if not pid:
-        return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
+    return platformutil.pid_alive(pid)
 
 
 def _count_active(reg: dict) -> int:
@@ -133,8 +123,8 @@ def submit(
             [sys.executable, "-m", "schrodinger_mcp._supervisor", str(job_dir)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True,
             cwd=str(job_dir),
+            **platformutil.detached_popen_kwargs(),
         )
         rec = {
             "job_id": job_id,
@@ -225,16 +215,11 @@ def results(job_id: str) -> dict:
 def cancel(job_id: str) -> dict:
     rec = _get_record(job_id)
     st = _status_from_disk(rec)
-    pgid = st.get("pgid")
     killed = False
-    for target in (pgid, rec.get("supervisor_pid")):
-        if not target:
-            continue
-        try:
-            os.killpg(target if target == pgid else os.getpgid(target), signal.SIGTERM)
+    # Kill the child launcher tree first (covers subjobs), then the supervisor.
+    for target in (st.get("child_pid"), rec.get("supervisor_pid")):
+        if target and platformutil.kill_tree(target):
             killed = True
-        except (ProcessLookupError, PermissionError):
-            continue
     # Mark cancelled in the job's status.json so future polls report it.
     job_dir = Path(rec["job_dir"])
     cur = {}
