@@ -235,11 +235,113 @@ def generate_2d_report(
     }
 
 
+def render_3d_view(
+    input_path: str,
+    ligand_index: Optional[int] = None,
+    ligand_asl: Optional[str] = None,
+    output_path: Optional[str] = None,
+    spin: bool = False,
+) -> dict:
+    """Generate a self-contained interactive 3D viewer (HTML) of a protein-ligand complex
+    or docked pose. Open the file in any web browser to rotate, zoom, and share — the
+    protein is shown as a cartoon, the ligand as sticks, and hydrogen bonds as dashed
+    lines with the contacting residues labelled. No Maestro required. For a Glide
+    pose-viewer file, `ligand_index` (default 2) picks the pose; for a single complex you
+    can pass a `ligand_asl`. Returns the path to the HTML file."""
+    inp = _common.validate_input_path(input_path)
+    out_dir = _common.results_dir("view3d")
+    data = runner.run_worker(
+        "export_3d",
+        {
+            "path": str(inp),
+            "ligand_index": ligand_index,
+            "ligand_asl": ligand_asl,
+            "out_dir": str(out_dir),
+        },
+    )
+    receptor_pdb = Path(data["receptor_pdb"]).read_text() if data.get("receptor_pdb") else ""
+    ligand_pdb = Path(data["ligand_pdb"]).read_text()
+    html = _build_3d_html(receptor_pdb, ligand_pdb, data["hbonds"], data.get("ligand_title"), spin)
+    out = _common.resolve_output_path(
+        output_path, default_dir=out_dir, default_name="viewer.html"
+    )
+    out.write_text(html)
+    n = len(data["hbonds"])
+    return {
+        "output_path": str(out),
+        "outputs": [str(out)],
+        "ligand": data.get("ligand_title"),
+        "n_hbonds": n,
+        "n_receptor_atoms": data.get("n_receptor_atoms"),
+        "summary": (
+            f"Interactive 3D viewer for {data.get('ligand_title') or 'ligand'} "
+            f"({n} H-bond{'s' if n != 1 else ''}) → open {out.name} in a web browser to "
+            f"rotate/zoom/share."
+        ),
+    }
+
+
+def _build_3d_html(receptor_pdb, ligand_pdb, hbonds, title, spin):
+    import json
+
+    title = title or "ligand"
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<title>3D viewer — {title}</title>
+<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+<style>
+ *{{margin:0;padding:0;box-sizing:border-box}}
+ html,body{{height:100%;background:#0b0f1a;font-family:-apple-system,Inter,system-ui,sans-serif}}
+ #v{{position:fixed;inset:0}}
+ .hud{{position:fixed;top:16px;left:16px;color:#e8ecff;z-index:10}}
+ .hud h1{{font-size:18px;font-weight:700;letter-spacing:-.3px}}
+ .hud p{{font-size:13px;color:#9aa6cc;margin-top:3px}}
+ .legend{{position:fixed;bottom:16px;left:16px;color:#aab4dc;font-size:12px;z-index:10;
+   background:rgba(8,12,24,.6);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 14px}}
+ .legend b{{color:#e8ecff}}
+ .btns{{position:fixed;top:16px;right:16px;z-index:10;display:flex;gap:8px}}
+ button{{background:rgba(255,255,255,.08);color:#e8ecff;border:1px solid rgba(255,255,255,.16);
+   border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer}}
+ button:hover{{background:rgba(255,255,255,.16)}}
+</style></head><body>
+<div id="v"></div>
+<div class="hud"><h1>{title}</h1><p>protein–ligand binding mode · {len(hbonds)} H-bonds</p></div>
+<div class="btns">
+  <button onclick="sp()">Spin</button>
+  <button onclick="hb()">H-bonds</button>
+  <button onclick="rv.zoomTo(lig);rv.zoom(0.7);rv.render()">Recenter</button>
+</div>
+<div class="legend">🟦 protein (cartoon) &nbsp; ⚪ ligand (sticks) &nbsp; <b>– – –</b> hydrogen bond (yellow)</div>
+<script>
+const REC={json.dumps(receptor_pdb)}, LIG={json.dumps(ligand_pdb)}, HB={json.dumps(hbonds)};
+const rv=$3Dmol.createViewer("v",{{backgroundColor:"0x0b0f1a"}});
+const rec=REC?rv.addModel(REC,"pdb"):null;
+const lig=rv.addModel(LIG,"pdb");
+if(rec){{ rec.setStyle({{}},{{cartoon:{{color:"spectrum",opacity:.92}}}}); }}
+lig.setStyle({{}},{{stick:{{radius:.18}}}});
+let shown=true, spinning={str(bool(spin)).lower()};
+function drawHB(){{HB.forEach(h=>{{
+  rv.addCylinder({{start:{{x:h.lx,y:h.ly,z:h.lz}},end:{{x:h.px,y:h.py,z:h.pz}},
+    radius:.05,dashed:true,fromCap:1,toCap:1,color:"yellow"}});
+  rv.addLabel(h.residue+"  "+h.distance+"\\u00c5",{{position:{{x:h.px,y:h.py,z:h.pz}},
+    fontSize:11,fontColor:"white",backgroundColor:"0x111827",backgroundOpacity:.75,borderThickness:0,inFront:true}});
+}}); rv.render();}}
+function hb(){{shown=!shown; if(shown){{drawHB()}}else{{rv.removeAllShapes();rv.removeAllLabels();rv.render()}}}}
+function sp(){{spinning=!spinning; rv.spin(spinning?"y":false)}}
+drawHB();
+rv.zoomTo({{model: lig.getID()}});
+rv.zoom(0.6);
+rv.render();
+if(spinning) rv.spin("y");
+window._rv=rv; window._lig=lig; window._rec=rec;  // for debugging/screenshots
+</script></body></html>"""
+
+
 def register(mcp) -> None:
     for fn in (
         render_2d_structure,
         analyze_interactions,
         ligand_interaction_diagram,
+        render_3d_view,
         generate_2d_report,
     ):
         mcp.tool()(fn)

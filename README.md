@@ -206,8 +206,9 @@ That's all the server needs. (On Windows use doubled backslashes inside JSON str
 
 **Visualization (sync)** — `render_2d_structure` (2D depiction PNG), `analyze_interactions`
 (H-bonds / salt bridges / π-π / π-cation report), `ligand_interaction_diagram` (2D
-interaction map PNG with residues labelled), `generate_2d_report` (PDF/HTML of structures
-with properties)
+interaction map PNG with residues labelled), `render_3d_view` (self-contained interactive
+3D viewer HTML — rotate/zoom/share a protein-ligand pose with H-bonds drawn, no Maestro
+needed), `generate_2d_report` (PDF/HTML of structures with properties)
 
 **Async job control** — `get_job_status`, `get_job_results`, `cancel_job`, `list_jobs`
 
