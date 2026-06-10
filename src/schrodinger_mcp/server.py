@@ -17,7 +17,7 @@ from .tools import docking, foundation, jobs_api, prep, properties, qm, viz
 mcp = FastMCP(
     "schrodinger",
     instructions=(
-        "Drive Schrödinger Suites 2026 computational-chemistry workflows: structure "
+        "Drive Schrödinger Suites computational-chemistry workflows: structure "
         "prep, Glide docking, ADMET/site analysis, and QM/MM-GBSA. Fast operations "
         "(format conversion, structure info, SMILES→3D) return inline. Long jobs "
         "(ligprep, docking, MM-GBSA, QM) return a job_id immediately — poll with "

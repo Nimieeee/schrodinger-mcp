@@ -2,7 +2,8 @@
 
 Each submits a Schrödinger job and returns a job_id. Inputs are copied into the job
 directory and referenced by basename (several launchers require inputs in the cwd);
-outputs land in the same job directory. Flag sets verified against Suite 2026-1.
+outputs land in the same job directory. Flag sets verified against Suite 2026-1 and use
+long-standing options that are stable across recent releases.
 """
 
 from __future__ import annotations

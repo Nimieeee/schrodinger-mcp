@@ -1,6 +1,6 @@
 # schrodinger-mcp
 
-An [MCP](https://modelcontextprotocol.io) server that exposes **Schrödinger Suites 2026**
+An [MCP](https://modelcontextprotocol.io) server that exposes **Schrödinger Suites**
 computational-chemistry / drug-discovery workflows to **any MCP-capable coding agent** —
 Claude Code, Claude Desktop, Cursor, GitHub Copilot, OpenCode, Cline, Windsurf, Zed, and
 more. Ask your agent to fetch a PDB, prep a protein and ligands, build a Glide grid, dock,
@@ -27,9 +27,16 @@ Outputs are written under `~/.local/share/schrodinger-mcp/` (override with
 
 ## Requirements
 
-- macOS, Linux, or Windows with **Schrödinger Suites 2026** installed and licensed
-  (auto-detected at `/opt/schrodinger/suites*` or `C:\Program Files\Schrodinger*`, or set `SCHRODINGER`).
+- macOS, Linux, or Windows with **Schrödinger Suites** installed and licensed. Any
+  recent release works — the server **auto-detects the newest installed version**
+  (globbing `/opt/schrodinger/suites*` or `C:\Program Files\Schrodinger*`) and reports
+  it via `detect_installation`. Set `SCHRODINGER` to pin a specific release.
 - [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`.
+
+> **Version support:** developed and validated against **Suites 2026-1**, but the server
+> is version-agnostic — it discovers whatever release is installed and calls stable
+> CLI/Python interfaces (with fallbacks for API calls that moved between releases). Tool
+> flags target modern releases; on much older versions a flag may occasionally need a tweak.
 
 > This project contains **no Schrödinger software or data**. You must supply your
 > own licensed installation of Schrödinger Suites; this server only invokes it

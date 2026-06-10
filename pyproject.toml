@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "schrodinger-mcp"
 version = "0.1.0"
-description = "MCP server wrapping Schrödinger Suites 2026 for computational chemistry / drug discovery"
+description = "MCP server wrapping Schrödinger Suites for computational chemistry / drug discovery"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

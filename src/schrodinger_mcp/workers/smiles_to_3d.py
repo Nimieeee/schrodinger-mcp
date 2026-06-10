@@ -10,7 +10,6 @@ This is a quick single-conformer 3D build; use the ligprep tool for full ligand 
 """
 
 import _wio
-import schrodinger.adapter as adapter
 from schrodinger import structure
 
 
@@ -28,7 +27,7 @@ def run(payload):
         for i, smi in enumerate(smiles):
             entry = {"smiles": smi}
             try:
-                st = adapter.smiles_to_3d_structure(smi, require_stereo=require_stereo)
+                st = _wio.smiles_to_3d(smi, require_stereo=require_stereo)
                 title = titles[i] if i < len(titles) else smi
                 st.title = title
                 entry.update(

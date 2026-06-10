@@ -9,7 +9,7 @@ molblock atom order) so the renderer can highlight the right atoms.
 """
 
 import _wio
-from schrodinger import adapter, structure
+from schrodinger import structure
 from schrodinger.structutils import analyze, interactions
 
 
@@ -147,12 +147,15 @@ def run(payload):
     try:
         from rdkit import Chem
 
-        rdmol = Chem.RemoveHs(adapter.to_rdkit(ligand))
+        rdmol = Chem.RemoveHs(_wio.to_rdkit(ligand))
         molblock = Chem.MolToMolBlock(rdmol)
         smiles = Chem.MolToSmiles(rdmol)
     except Exception:
         molblock = None
-        smiles = adapter.to_smiles(ligand) if hasattr(adapter, "to_smiles") else None
+        try:
+            smiles = _wio.to_smiles(ligand)
+        except Exception:
+            smiles = None
 
     summary = {
         "n_hbonds": sum(1 for f in found if f["type"] == "hbond"),

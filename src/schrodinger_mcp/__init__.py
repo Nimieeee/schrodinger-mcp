@@ -1,6 +1,6 @@
 """Schrödinger Suites MCP server.
 
-Exposes Schrödinger Suites 2026 computational-chemistry workflows (structure prep,
+Exposes Schrödinger Suites computational-chemistry workflows (structure prep,
 Glide docking, ADMET/site analysis, QM/MM-GBSA) as MCP tools so Claude can drive them.
 
 Architecture: the server runs in its own venv and shells out to ``$SCHRODINGER/run``

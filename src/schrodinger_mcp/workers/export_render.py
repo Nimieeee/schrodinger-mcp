@@ -6,7 +6,7 @@ Returns: {"structures": [{"title","smiles","legend"}], "count": int}
 """
 
 import _wio
-from schrodinger import adapter, structure
+from schrodinger import structure
 
 
 def run(payload):
@@ -19,11 +19,9 @@ def run(payload):
             if len(out) >= limit:
                 break
             try:
-                smiles = adapter.to_smiles(st)
+                smiles = _wio.to_smiles(st)
             except Exception:
-                from rdkit import Chem
-
-                smiles = Chem.MolToSmiles(adapter.to_rdkit(st))
+                smiles = None
             legend = st.title or f"structure {i}"
             if prop and prop in st.property:
                 val = st.property[prop]
