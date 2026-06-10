@@ -1,10 +1,11 @@
 # schrodinger-mcp
 
 An [MCP](https://modelcontextprotocol.io) server that exposes **Schrödinger Suites 2026**
-computational-chemistry / drug-discovery workflows to Claude (Claude Code and Claude
-Desktop). Ask Claude to fetch a PDB, prep a protein and ligands, build a Glide grid, dock,
-score, run ADMET, MM-GBSA, or QM — it drives Schrödinger for you and hands back ranked
-tables plus files you can open in Maestro.
+computational-chemistry / drug-discovery workflows to **any MCP-capable coding agent** —
+Claude Code, Claude Desktop, Cursor, GitHub Copilot, OpenCode, Cline, Windsurf, Zed, and
+more. Ask your agent to fetch a PDB, prep a protein and ligands, build a Glide grid, dock,
+score, run ADMET, MM-GBSA, QM, or draw a 2D interaction diagram — it drives Schrödinger for
+you and hands back ranked tables plus files you can open in Maestro.
 
 ## How it works
 
@@ -15,10 +16,10 @@ detached supervisor that survives server restarts, and you poll them with
 `get_job_status` / `get_job_results`.
 
 ```
-Claude ──tool call──▶ schrodinger-mcp (venv, FastMCP, stdio)
-                         │  fast ops ─▶ $SCHRODINGER/run python3 <worker>  ─▶ JSON
-                         └  long jobs ─▶ detached supervisor ─▶ $SCHRODINGER/<launcher> -WAIT
-                                          └─ status.json (authoritative) ◀─ poll
+MCP client ──tool call──▶ schrodinger-mcp (venv, FastMCP, stdio)
+                            │  fast ops ─▶ $SCHRODINGER/run python3 <worker>  ─▶ JSON
+                            └  long jobs ─▶ detached supervisor ─▶ $SCHRODINGER/<launcher> -WAIT
+                                             └─ status.json (authoritative) ◀─ poll
 ```
 
 Outputs are written under `~/.local/share/schrodinger-mcp/` (override with
@@ -66,44 +67,110 @@ Sanity check:
 python -c "from schrodinger_mcp.tools.foundation import detect_installation as d; print(d()['version'])"
 ```
 
-## Register with Claude
+## Connect a coding agent
 
-**Claude Code** (the `--` separates the launch command; quote the spaced path):
+This is a standard **stdio** MCP server, so any MCP-capable client works. In every case
+you point the client at the console script and set the `SCHRODINGER` env var. Use the
+absolute path to the installed command:
+
+| Platform | Server command (`<CMD>` below) |
+|---|---|
+| macOS / Linux | `/Users/mac/schrodinger mcp/.venv/bin/schrodinger-mcp` |
+| Windows | `C:\path\to\schrodinger-mcp\.venv\Scripts\schrodinger-mcp.exe` |
+
+And `<ROOT>` = your install root (`/opt/schrodinger/suites2026-1`, or
+`C:\Program Files\Schrodinger2026-1`). After configuring, **restart the client**; the
+`schrodinger` tools and the `schrodinger://installation` resource appear.
+
+### Claude Code
 
 ```bash
-claude mcp add schrodinger \
-  --env SCHRODINGER=/opt/schrodinger/suites2026-1 \
-  -- "/Users/mac/schrodinger mcp/.venv/bin/schrodinger-mcp"
+claude mcp add schrodinger --env SCHRODINGER=<ROOT> -- "<CMD>"
 ```
 
-**Claude Desktop** — add to
-`~/Library/Application Support/Claude/claude_desktop_config.json`:
+### Cursor · Claude Desktop · Cline · Windsurf  (shared `mcpServers` format)
+
+These four use the **same JSON shape** — just a different file:
+
+| Client | Config file |
+|---|---|
+| Cursor | `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (per project) |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) · `%APPDATA%\Claude\claude_desktop_config.json` (Windows) |
+| Cline (VS Code) | the **“Configure MCP Servers”** panel → `cline_mcp_settings.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 
 ```json
 {
   "mcpServers": {
     "schrodinger": {
-      "command": "/Users/mac/schrodinger mcp/.venv/bin/schrodinger-mcp",
+      "command": "<CMD>",
       "args": [],
-      "env": { "SCHRODINGER": "/opt/schrodinger/suites2026-1" }
+      "env": { "SCHRODINGER": "<ROOT>" }
     }
   }
 }
 ```
 
-**Windows** — register the `.exe` console script (note the Windows install path):
+### GitHub Copilot (VS Code agent mode)
 
-```powershell
-claude mcp add schrodinger `
-  --env SCHRODINGER="C:\Program Files\Schrodinger2026-1" `
-  -- "C:\path\to\schrodinger-mcp\.venv\Scripts\schrodinger-mcp.exe"
+Create `.vscode/mcp.json` in the workspace (or run **“MCP: Add Server”** from the Command
+Palette), then enable it in the Copilot Chat **Agent mode** tool picker:
+
+```json
+{
+  "servers": {
+    "schrodinger": {
+      "type": "stdio",
+      "command": "<CMD>",
+      "args": [],
+      "env": { "SCHRODINGER": "<ROOT>" }
+    }
+  }
+}
 ```
 
-For Claude Desktop on Windows, edit `%APPDATA%\Claude\claude_desktop_config.json` and set
-`"command"` to that `.exe` path (use doubled backslashes in JSON).
+### OpenCode
 
-Restart the client; the `schrodinger` tools and the `schrodinger://installation` resource
-appear.
+Add to `opencode.json` (project root) or `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "schrodinger": {
+      "type": "local",
+      "command": ["<CMD>"],
+      "environment": { "SCHRODINGER": "<ROOT>" },
+      "enabled": true
+    }
+  }
+}
+```
+
+### Zed
+
+In `settings.json` (`context_servers`):
+
+```json
+{
+  "context_servers": {
+    "schrodinger": {
+      "command": { "path": "<CMD>", "args": [], "env": { "SCHRODINGER": "<ROOT>" } },
+      "settings": {}
+    }
+  }
+}
+```
+
+### Any other MCP client
+
+Transport **stdio**, command **`<CMD>`**, one environment variable **`SCHRODINGER=<ROOT>`**.
+That's all the server needs. (On Windows use doubled backslashes inside JSON strings.)
+
+> **Inline images:** the 2D-structure and interaction-diagram tools return MCP image
+> content. Claude clients render it inline; other agents may show it as an attachment or
+> just return the result — either way the PNG is always written to disk and its path is
+> returned, so nothing is lost.
 
 ## Tools
 
@@ -125,6 +192,11 @@ appear.
 **ADMET & site analysis** — `qikprop`, `compute_descriptors` (sync), `sitemap`, `shape_screen`
 
 **QM & MM-GBSA** — `prime_mmgbsa`, `jaguar_qm`
+
+**Visualization (sync)** — `render_2d_structure` (2D depiction PNG), `analyze_interactions`
+(H-bonds / salt bridges / π-π / π-cation report), `ligand_interaction_diagram` (2D
+interaction map PNG with residues labelled), `generate_2d_report` (PDF/HTML of structures
+with properties)
 
 **Async job control** — `get_job_status`, `get_job_results`, `cancel_job`, `list_jobs`
 
