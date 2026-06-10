@@ -1,0 +1,45 @@
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- OS ---
+.DS_Store
+
+# --- Schrödinger tutorial / test data: DO NOT PUBLISH ---
+# Derived from Schrödinger's copyrighted tutorial datasets and regenerated locally
+# by the test scripts. Never commit structure or result data.
+data/
+*.mae
+*.maeg
+*.maegz
+*.mae.gz
+*.sdf
+*.pdb
+*.mol2
+*.zip
+*.grd
+*_pv.*
+merged.mae
+
+# Rendered images / result artifacts
+*.png
+*.svg
+results/
+
+# Schrödinger license files — never commit
+*.lic
+
+# --- Unrelated project living in this working directory ---
+my-ad/
+
+# --- Local env / secrets ---
+.env
+*.local.toml

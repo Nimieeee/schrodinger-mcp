@@ -1,0 +1,16 @@
+# Optional configuration for schrodinger-mcp.
+# All of these can also be set via environment variables (which take precedence in
+# the client config's "env" block). Copy to ~/.config/schrodinger-mcp/config.toml.
+
+# Path to the Schrödinger install root. If unset, the server autodetects the highest
+# /opt/schrodinger/suites* (or /Applications/SchrodingerSuites*).
+# schrodinger = "/opt/schrodinger/suites2026-1"
+
+# Root for everything the server writes (per-job directories, scratch, job registry).
+# home = "~/.local/share/schrodinger-mcp"
+
+# Advisory limit on concurrent heavy jobs (the laptop default keeps things responsive).
+# max_jobs = 2
+
+# Seconds a synchronous tool waits before suggesting an async submission.
+# sync_timeout = 120

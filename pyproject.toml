@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "schrodinger-mcp"
+version = "0.1.0"
+description = "MCP server wrapping Schrödinger Suites 2026 for computational chemistry / drug discovery"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "xepho" }]
+dependencies = [
+    "mcp>=1.2",
+    "pydantic>=2",
+    "filelock>=3.12",
+    "rdkit>=2023.9",
+    "pillow>=9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+schrodinger-mcp = "schrodinger_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/schrodinger_mcp"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/schrodinger_mcp/workers" = "schrodinger_mcp/workers"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "slow: tests that launch real Schrödinger jobs (deselect with -m 'not slow')",
+    "suite: tests that require a real Schrödinger installation",
+]
